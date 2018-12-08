@@ -1,5 +1,7 @@
 package com.pixonic.test;
 
+import com.pixonic.test.util.MillisAndNanos;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.*;
@@ -76,11 +78,12 @@ public class Task<V> implements Comparable<Task>, Future<V> {
         final long deadline = System.nanoTime() + unit.toNanos(timeout);
         synchronized (monitor) {
             while (!completed) {
-                long toWait = deadline - System.nanoTime();
-                if (toWait < 0) {
+                long toWaitNanos = deadline - System.nanoTime();
+                if (toWaitNanos < 0) {
                     throw new TimeoutException();
                 }
-                monitor.wait(TimeUnit.NANOSECONDS.toMillis(toWait), (int) (toWait % 1_000_000));
+                MillisAndNanos toWait = MillisAndNanos.ofNanos(toWaitNanos);
+                monitor.wait(toWait.getMillis(), toWait.getNanos());
             }
         }
         if (exception != null) {
