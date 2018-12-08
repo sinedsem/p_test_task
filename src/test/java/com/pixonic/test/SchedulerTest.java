@@ -82,9 +82,6 @@ public class SchedulerTest {
 
         assertEquals(1000, counter.get());
 
-        System.err.println(scheduler.getAverageMiss());
-        System.err.println(scheduler.getMaxMiss());
-
         assertTrue(scheduler.getAverageMiss() < 100);
         assertTrue(scheduler.getMaxMiss() < 1000);
     }
