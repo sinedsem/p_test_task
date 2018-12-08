@@ -7,11 +7,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class SchedulerTest {
 
@@ -28,6 +28,23 @@ public class SchedulerTest {
         Integer resultFromFuture = future.get();
         assertEquals(4, resultFromFuture.intValue());
         assertEquals(1, counter.get());
+    }
+
+
+    @Test
+    public void testException() throws Exception {
+        Scheduler scheduler = new Scheduler();
+
+        Future<Integer> future = scheduler.submit(LocalDateTime.now().plusSeconds(1), () -> {
+            throw new RuntimeException("whoops");
+        });
+
+        try {
+            future.get();
+            fail("No exception was thrown");
+        } catch (ExecutionException e) {
+            assertEquals("java.lang.RuntimeException: whoops", e.getMessage());
+        }
     }
 
     @Test
