@@ -25,10 +25,8 @@ public class Scheduler {
     private final AtomicLong counter = new AtomicLong();
 
     private final BlockingQueue<Task> waiting = new PriorityBlockingQueue<>();
-    private final BlockingQueue<Task> toExecute = new PriorityBlockingQueue<>();
 
-    private final Planner planner = new Planner();
-    private final Executor executor = new Executor();
+    private final Planner queue = new Planner();
 
     private volatile boolean stop = false;
 
@@ -36,14 +34,13 @@ public class Scheduler {
 
 
     public Scheduler() {
-        planner.start();
-        executor.start();
+        queue.start();
     }
 
     public <V> Future<V> submit(LocalDateTime time, Callable<V> callable) {
         Task<V> task = new Task<>(time, callable, counter.getAndIncrement());
         waiting.add(task);
-        planner.interrupt();
+        queue.interrupt();
         return task;
     }
 
@@ -67,33 +64,15 @@ public class Scheduler {
                         log.debug("Waiting: will sleep {} ms", toSleep.getMillis());
                         Thread.sleep(toSleep.getMillis(), toSleep.getNanos());
                     } else {
-                        log.debug("Waiting: sending task {} for execution", task);
-                        toExecute.put(task);
+                        log.debug("Executing task {}", task);
+                        long miss = ChronoUnit.MILLIS.between(task.getTime(), LocalDateTime.now());
+                        misses.add(miss);
+                        task.execute();
+                        log.debug("Task completed {}", task);
                     }
                 } catch (InterruptedException ignored) {
                     // that's fine
                 }
-            }
-        }
-    }
-
-    private class Executor extends Thread {
-
-        @Override
-        public void run() {
-            while (!stop) {
-                Task task;
-                try {
-                    task = toExecute.take();
-                    log.debug("Executing: got task {}", task);
-                } catch (InterruptedException e) {
-                    continue;
-                }
-
-                long miss = ChronoUnit.MILLIS.between(task.getTime(), LocalDateTime.now());
-                misses.add(miss);
-                task.execute();
-                log.debug("Executing: task completed {}", task);
             }
         }
     }
