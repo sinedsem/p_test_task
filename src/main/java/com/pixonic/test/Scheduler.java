@@ -24,9 +24,9 @@ public class Scheduler {
 
     private final AtomicLong counter = new AtomicLong();
 
-    private final BlockingQueue<Task> waiting = new PriorityBlockingQueue<>();
+    private final BlockingQueue<Task> queue = new PriorityBlockingQueue<>();
 
-    private final Planner queue = new Planner();
+    private final Planner planner = new Planner();
 
     private volatile boolean stop = false;
 
@@ -34,13 +34,13 @@ public class Scheduler {
 
 
     public Scheduler() {
-        queue.start();
+        planner.start();
     }
 
     public <V> Future<V> submit(LocalDateTime time, Callable<V> callable) {
         Task<V> task = new Task<>(time, callable, counter.getAndIncrement());
-        waiting.add(task);
-        queue.interrupt();
+        queue.add(task);
+        planner.interrupt();
         return task;
     }
 
@@ -51,15 +51,21 @@ public class Scheduler {
 
     private class Planner extends Thread {
 
+
+
+
         @Override
+
+
+
         public void run() {
             while (!stop) {
                 try {
-                    Task task = waiting.take();
+                    Task task = queue.take();
                     log.debug("Waiting: got task {}", task);
                     if (LocalDateTime.now().plus(ALLOWED_TIME_TO_START_EARLIER).isBefore(task.getTime())) {
                         log.debug("Waiting: task {} not ready to be executed", task);
-                        waiting.put(task);
+                        queue.put(task);
                         MillisAndNanos toSleep = MillisAndNanos.ofNanos(ChronoUnit.NANOS.between(LocalDateTime.now(), task.getTime()));
                         log.debug("Waiting: will sleep {} ms", toSleep.getMillis());
                         Thread.sleep(toSleep.getMillis(), toSleep.getNanos());
